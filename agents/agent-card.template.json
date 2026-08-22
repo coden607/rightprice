@@ -1,0 +1,37 @@
+{
+  "name": "RightPrice Shopping Agent",
+  "description": "Shopper-first product discovery and purchasing-option comparison across authorized commerce connectors.",
+  "supportedInterfaces": [
+    {
+      "url": "https://REPLACE-WITH-DEPLOYED-HOST.example/a2a",
+      "protocolBinding": "HTTP+JSON",
+      "protocolVersion": "1.0"
+    }
+  ],
+  "provider": {
+    "url": "https://REPLACE-WITH-DEPLOYED-HOST.example",
+    "organization": "RightPrice"
+  },
+  "version": "0.1.0",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false
+  },
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "commerce-search",
+      "name": "Commerce search",
+      "description": "Search and normalize product offers by user-defined price, speed, trust, return, cashback and local criteria.",
+      "tags": ["shopping", "price-comparison", "commerce"],
+      "examples": ["Find the cheapest reputable cordless drill delivered by Friday"]
+    },
+    {
+      "id": "product-resolution",
+      "name": "Product resolution",
+      "description": "Resolve listings to canonical products using strong identifiers and confidence gates.",
+      "tags": ["product-identity", "upc", "gtin"]
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+import {
+  calculateOfferTotals,
+  money,
+  normalizeTitle,
+  type CommerceConnector,
+  type ConnectorHealth,
+  type Offer,
+  type SearchContext,
+  type SearchIntent
+} from "@rightprice/core";
+
+export interface GenericJsonFeedFieldMap {
+  id: string;
+  title: string;
+  price: string;
+  shipping?: string;
+  cashback?: string;
+  url: string;
+  affiliateUrl?: string;
+  imageUrl?: string;
+  brand?: string;
+  upc?: string;
+  seller?: string;
+}
+
+export interface GenericJsonFeedConfig {
+  id: string;
+  displayName: string;
+  endpoint?: string;
+  enabled?: boolean;
+  fields: GenericJsonFeedFieldMap;
+  maxItems?: number;
+  allowsCashback?: boolean;
+}
+
+type FeedRow = Record<string, unknown>;
+
+function get(row: FeedRow, key?: string): unknown {
+  if (!key) return undefined;
+  return key.split(".").reduce<unknown>((value, part) => {
+    if (value && typeof value === "object" && part in value) return (value as FeedRow)[part];
+    return undefined;
+  }, row);
+}
+
+function asString(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function safeConfiguredUrl(value?: string): URL | null {
+  if (!value) return null;
+  const url = new URL(value);
+  if (url.protocol !== "https:") throw new Error("Generic feed endpoint must use HTTPS");
+  return url;
+}
+
+export class GenericJsonFeedConnector implements CommerceConnector {
+  readonly id: string;
+  readonly displayName: string;
+
+  constructor(private readonly config: GenericJsonFeedConfig) {
+    this.id = config.id;
+    this.displayName = config.displayName;
+  }
+
+  isEnabled(): boolean {
+    return Boolean(this.config.enabled && this.config.endpoint);
+  }
+
+  private async rows(): Promise<FeedRow[]> {
+    const endpoint = safeConfiguredUrl(this.config.endpoint);
+    if (!endpoint) return [];
+    const response = await fetch(endpoint, { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (!response.ok) throw new Error(`${this.displayName} feed failed (${response.status})`);
+    const body = await response.json() as unknown;
+    if (Array.isArray(body)) return body.filter((row): row is FeedRow => Boolean(row && typeof row === "object"));
+    if (body && typeof body === "object") {
+      const possible = (body as FeedRow).items ?? (body as FeedRow).products ?? (body as FeedRow).offers;
+      if (Array.isArray(possible)) return possible.filter((row): row is FeedRow => Boolean(row && typeof row === "object"));
+    }
+    throw new Error(`${this.displayName} feed did not return an array/items/products/offers collection`);
+  }
+
+  async search(intent: SearchIntent, _context: SearchContext): Promise<Offer[]> {
+    if (!this.isEnabled()) return [];
+    const tokens = normalizeTitle(intent.query).split(" ").filter(Boolean);
+    const rows = await this.rows();
+    const fields = this.config.fields;
+    const now = new Date().toISOString();
+
+    return rows.slice(0, this.config.maxItems ?? 1000).flatMap((row): Offer[] => {
+      const externalId = asString(get(row, fields.id));
+      const title = asString(get(row, fields.title));
+      const sourceUrl = asString(get(row, fields.url));
+      const price = asNumber(get(row, fields.price), Number.NaN);
+      if (!externalId || !title || !sourceUrl || !Number.isFinite(price) || price < 0) return [];
+      const normalizedTitle = normalizeTitle(title);
+      if (tokens.length && !tokens.every((token) => normalizedTitle.includes(token))) return [];
+      const itemPrice = money(price);
+      const shipping = money(Math.max(0, asNumber(get(row, fields.shipping), 0)));
+      const cashback = money(this.config.allowsCashback ? Math.max(0, asNumber(get(row, fields.cashback), 0)) : 0);
+      const totals = calculateOfferTotals({ itemPrice, shipping, cashback });
+      if (intent.maxPrice != null && totals.totalBeforeCashback.amount > intent.maxPrice) return [];
+      if (intent.condition && intent.condition !== "new") return [];
+      if (intent.localPickup) return [];
+      const upc = asString(get(row, fields.upc));
+      const affiliateUrl = asString(get(row, fields.affiliateUrl));
+      const brand = asString(get(row, fields.brand));
+
+      return [{
+        id: `${this.id}:${externalId}`,
+        product: {
+          id: `${this.id}-product:${externalId}`,
+          title,
+          normalizedTitle,
+          brand,
+          identifiers: upc ? [{ type: "upc", value: upc }] : [],
+          imageUrl: asString(get(row, fields.imageUrl))
+        },
+        retailerId: this.id,
+        retailerName: this.displayName,
+        seller: asString(get(row, fields.seller)) ? { name: asString(get(row, fields.seller))! } : undefined,
+        condition: "new",
+        itemPrice,
+        shipping,
+        cashback: cashback.amount > 0 ? cashback : undefined,
+        ...totals,
+        sourceUrl,
+        affiliateUrl,
+        sourceTimestamp: now,
+        freshnessSeconds: 1800,
+        riskFlags: [],
+        metadata: { source: "generic-json-feed" }
+      }];
+    });
+  }
+
+  async health(): Promise<ConnectorHealth> {
+    if (!this.isEnabled()) return { connectorId: this.id, ok: false, message: "Disabled or endpoint missing", checkedAt: new Date().toISOString() };
+    try {
+      const rows = await this.rows();
+      return { connectorId: this.id, ok: true, message: `Feed reachable (${rows.length} rows)`, checkedAt: new Date().toISOString() };
+    } catch (error) {
+      return { connectorId: this.id, ok: false, message: error instanceof Error ? error.message : "Feed error", checkedAt: new Date().toISOString() };
+    }
+  }
+}

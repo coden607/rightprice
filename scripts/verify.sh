@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+npm run test
+npm run typecheck
+npm run lint
+npm run build
+
+echo "RightPrice verification passed."

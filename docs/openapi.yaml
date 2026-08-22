@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: RightPrice Web API
+  version: 0.1.0
+  description: Shopper-facing read/search endpoints. Affiliate network conversion APIs are connector-specific and are not represented until activated.
+servers:
+  - url: https://rightprice.example
+paths:
+  /api/search:
+    get:
+      summary: Search and rank normalized commerce offers
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 300 }
+        - in: query
+          name: preset
+          schema:
+            type: string
+            enum: [best_overall, cheapest, fastest, trusted, cashback, local]
+        - in: query
+          name: wp
+          description: Custom price importance, 0-100. Supplying any custom weight activates custom ranking.
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: wd
+          description: Custom delivery importance, 0-100.
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: wt
+          description: Custom seller-trust importance, 0-100.
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: wr
+          description: Custom returns importance, 0-100.
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: wc
+          description: Custom cashback importance, 0-100.
+          schema: { type: number, minimum: 0, maximum: 100 }
+        - in: query
+          name: wl
+          description: Custom local-pickup importance, 0-100.
+          schema: { type: number, minimum: 0, maximum: 100 }
+      responses:
+        '200':
+          description: Ranked offers plus connector status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requestId, intent, offers, connectorErrors, searchedConnectors, durationMs, disclosure]
+                properties:
+                  requestId: { type: string }
+                  intent: { type: object }
+                  offers: { type: array, items: { $ref: '#/components/schemas/PublicOffer' } }
+                  connectorErrors: { type: array, items: { type: object } }
+                  searchedConnectors: { type: array, items: { type: string } }
+                  durationMs: { type: integer }
+                  disclosure: { type: string }
+        '400': { description: Invalid search query }
+  /api/health:
+    get:
+      summary: Non-secret connector health
+      responses:
+        '200': { description: Connector health report }
+  /api/clickout:
+    get:
+      summary: Verify a signed offer token, record attribution and redirect to retailer
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '302': { description: Verified retailer redirect }
+        '400': { description: Invalid, unsafe or expired token }
+  /api/cron/price-alerts:
+    get:
+      summary: Protected scheduled price-alert recheck
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Alert-check summary }
+        '401': { description: Missing or invalid CRON_SECRET }
+  /api/internal/affiliate-transactions:
+    post:
+      summary: Protected normalized affiliate transaction ingestion
+      description: Intended for trusted retailer/network adapters after their upstream signature has been validated.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Idempotent normalized transaction accepted }
+        '400': { description: Invalid normalized event }
+        '401': { description: Missing or invalid ingestion secret }
+        '409': { description: Program/rule/state conflict }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: number }
+        currency: { type: string }
+    PublicOffer:
+      type: object
+      required: [id, title, retailerId, retailerName, itemPrice, shipping, totalBeforeCashback, effectiveCost, score, rankReason, clickUrl]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        retailerId: { type: string }
+        retailerName: { type: string }
+        itemPrice: { $ref: '#/components/schemas/Money' }
+        shipping: { $ref: '#/components/schemas/Money' }
+        totalBeforeCashback: { $ref: '#/components/schemas/Money' }
+        effectiveCost: { $ref: '#/components/schemas/Money' }
+        score: { type: integer, minimum: 0, maximum: 100 }
+        rankReason: { type: string }
+        clickUrl: { type: string }
