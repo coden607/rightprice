@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { BookmarkPlus, ExternalLink, GitCompareArrows, Search, Share2, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { addCompareOffer, saveOffer, type SavedOfferSnapshot } from "@/lib/client/shopping-memory";
 
 type Preset = "best_overall" | "cheapest" | "fastest" | "trusted" | "cashback" | "local";
 type CustomWeights = {
@@ -16,6 +17,7 @@ type CustomWeights = {
 type SearchOffer = {
   id: string;
   title: string;
+  retailerId: string;
   retailerName: string;
   sellerName: string | null;
   sellerRating: number | null;
@@ -108,6 +110,7 @@ export function SearchClient({ initialQuery }: { initialQuery: string }) {
   const [data, setData] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const search = useCallback(async (q: string, p: Preset, custom?: CustomWeights) => {
     if (q.trim().length < 2) return;
@@ -150,6 +153,42 @@ export function SearchClient({ initialQuery }: { initialQuery: string }) {
   function applyCustomPriorities() {
     setAppliedWeights({ ...draftWeights });
     setCustomOpen(false);
+  }
+
+  function snapshotFor(offer: SearchOffer): SavedOfferSnapshot {
+    return {
+      id: offer.id,
+      title: offer.title,
+      retailerName: offer.retailerName,
+      retailerId: offer.retailerId,
+      total: offer.totalBeforeCashback.amount,
+      effective: offer.effectiveCost.amount,
+      currency: offer.effectiveCost.currency,
+      deliveryLabel: deliveryText(offer),
+      score: offer.score,
+      query: submittedQuery,
+      savedAt: new Date().toISOString()
+    };
+  }
+
+  function save(offer: SearchOffer) {
+    saveOffer(snapshotFor(offer));
+    setNotice(`Saved ${offer.title}.`);
+  }
+
+  function compare(offer: SearchOffer) {
+    const result = addCompareOffer(snapshotFor(offer));
+    setNotice(result.added ? `Added ${offer.title} to compare.` : `${offer.title} is already in compare.`);
+  }
+
+  async function shareSearch() {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({ title: `RightPrice: ${submittedQuery}`, url });
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    setNotice("Search link copied.");
   }
 
   return (
@@ -205,13 +244,14 @@ export function SearchClient({ initialQuery }: { initialQuery: string }) {
       ) : null}
 
       {appliedWeights ? <div className="info-box">Custom ranking is active. Change a preset above to return to a standard ranking mode.</div> : null}
+      {notice ? <div className="info-box notice-box">{notice}</div> : null}
       {error && <div className="error-box">{error}</div>}
       {data?.connectorErrors.length ? <div className="error-box">Some stores could not be checked: {data.connectorErrors.map((item) => item.connectorId).join(", ")}. Available results are still shown.</div> : null}
 
       {data && (
         <div className="summary-row">
           <span>{data.offers.length} offers · checked {data.searchedConnectors.join(", ")} · {data.durationMs} ms</span>
-          <span className="summary-actions"><ShieldCheck size={14} style={{ verticalAlign: "-2px" }} /> Shopper-first ranking <a className="chip" href={`/alerts?q=${encodeURIComponent(submittedQuery)}`}>Set price alert</a></span>
+          <span className="summary-actions"><ShieldCheck size={14} style={{ verticalAlign: "-2px" }} /> Shopper-first ranking <a className="chip" href={`/alerts?q=${encodeURIComponent(submittedQuery)}`}>Set price alert</a><button className="chip action-chip" type="button" onClick={() => void shareSearch()}><Share2 size={13} /> Share search</button></span>
         </div>
       )}
 
@@ -258,9 +298,10 @@ export function SearchClient({ initialQuery }: { initialQuery: string }) {
               <div className="retailer">{offer.sellerRating != null ? `${offer.sellerRating}% seller` : "seller varies"}</div>
             </div>
 
-            <div className="buy-cell">
+            <div className="buy-cell offer-actions">
               <a className="primary-button" href={offer.clickUrl} rel="nofollow sponsored" target="_blank">View offer <ExternalLink size={14} style={{ display: "inline", verticalAlign: "-2px" }} /></a>
-              {offer.affiliateEligible ? <small className="retailer">Sponsored link; RightPrice may earn a commission.</small> : null}
+              <button className="secondary-button compact-button" type="button" onClick={() => save(offer)}><BookmarkPlus size={14} /> Save</button>
+              <button className="secondary-button compact-button" type="button" onClick={() => compare(offer)}><GitCompareArrows size={14} /> Compare</button>
             </div>
           </article>
         ))}
