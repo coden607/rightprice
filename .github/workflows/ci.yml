@@ -19,3 +19,40 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - name: Production HTTP smoke
+        env:
+          ENABLE_DEMO_CONNECTOR: "true"
+          RIGHTPRICE_CLICKOUT_SECRET: "ci-smoke-secret-rightprice-not-for-production"
+          NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000"
+        run: |
+          npm --workspace @rightprice/web run start -- --hostname 127.0.0.1 > /tmp/rightprice-next.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/rightprice-next.log
+            exit 1
+          fi
+
+          for path in / /search /deals /compare /lists /install /disclosure /privacy /terms /offline /manifest.webmanifest /sw.js /robots.txt /sitemap.xml; do
+            curl --fail --silent --show-error "http://127.0.0.1:3000$path" >/dev/null
+          done
+
+          search_payload="$(curl --fail --silent --show-error 'http://127.0.0.1:3000/api/search?q=wireless%20earbuds&preset=cheapest')"
+          SEARCH_PAYLOAD="$search_payload" node -e '
+            const payload = JSON.parse(process.env.SEARCH_PAYLOAD);
+            if (!Array.isArray(payload.offers) || payload.offers.length === 0) throw new Error("Demo search returned no offers");
+            if (!payload.offers[0]?.clickUrl) throw new Error("Top offer has no signed clickout URL");
+            if (!String(payload.disclosure ?? "").includes("Affiliate compensation is not used as a ranking input")) throw new Error("Ranking disclosure missing");
+          '
+
+          curl --fail --silent --show-error http://127.0.0.1:3000/api/health >/dev/null
