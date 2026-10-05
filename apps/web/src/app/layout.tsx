@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { InstallAppButton } from "@/components/install-app-button";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               RightPrice
             </Link>
             <div className="nav-links">
-              <Link href="/search">Compare</Link>
+              <Link href="/search">Search</Link>
+              <Link href="/compare">Compare</Link>
+              <Link href="/lists">Saved</Link>
               <Link href="/deals">Deals</Link>
               <Link href="/scan">Scan</Link>
               <Link href="/alerts">Alerts</Link>
@@ -35,13 +38,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/referrals">Refer & Earn</Link>
               <Link href="/admin">Admin</Link>
               <Link href="/account">Account</Link>
+              <InstallAppButton compact />
             </div>
           </div>
         </nav>
         {children}
         <footer className="footer">
           <div className="shell footer-inner">
-            <span>© {new Date().getFullYear()} RightPrice</span>
+            <span>© {new Date().getFullYear()} RightPrice · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link> · <Link href="/disclosure">Disclosure</Link></span>
             <span>RightPrice may earn compensation from qualifying purchases. Rankings are shopper-first and do not use affiliate commission as a ranking input.</span>
           </div>
         </footer>
