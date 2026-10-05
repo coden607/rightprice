@@ -1,0 +1,2 @@
+import type { MetadataRoute } from "next";
+export default function sitemap(): MetadataRoute.Sitemap { const base=process.env.NEXT_PUBLIC_APP_URL ?? "https://rightprice.app"; return ["","/search","/deals","/scan","/compare","/lists","/alerts","/rewards","/referrals","/install","/disclosure","/privacy","/terms"].map((path)=>({url:`${base}${path}`,changeFrequency:path==="/deals"?"daily":"weekly",priority:path===""?1:0.7})); }
