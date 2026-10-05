@@ -1,0 +1,4 @@
+import type { Metadata } from "next";
+import { InstallAppButton } from "@/components/install-app-button";
+export const metadata: Metadata = { title:"Install RightPrice" };
+export default function InstallPage(){return <main className="section shell"><div className="section-head"><div><h2>Install RightPrice</h2><p>Keep price comparison one tap away without needing an app-store download.</p></div></div><section className="panel"><InstallAppButton/><div className="legal-copy"><h3>iPhone / iPad</h3><p>Open RightPrice in Safari, tap Share (or the ••• menu on newer iOS versions), choose <b>Add to Home Screen</b>, and enable <b>Open as Web App</b> when shown.</p><h3>Android / Chrome / Edge</h3><p>Use the Install button above. If your browser does not expose the install prompt, open its menu and choose <b>Install app</b> or <b>Add to Home screen</b>.</p><h3>Desktop Safari</h3><p>Use File → Add to Dock when available.</p></div></section></main>;}

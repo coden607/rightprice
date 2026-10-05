@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BadgeDollarSign, Clock3, SearchCheck, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BadgeDollarSign, Bookmark, Clock3, Download, SearchCheck, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { InstallAppButton } from "@/components/install-app-button";
 
 const examples = [
   "cheapest DeWalt impact driver delivered this week",
@@ -24,6 +25,7 @@ export default function HomePage() {
         <div className="quick-examples" aria-label="Example searches">
           {examples.map((example) => <Link className="chip" href={`/search?q=${encodeURIComponent(example)}`} key={example}>{example}</Link>)}
         </div>
+        <div className="hero-actions"><InstallAppButton /><Link className="secondary-button" href="/lists"><Bookmark size={14} style={{ verticalAlign: "-2px", marginRight: 5 }} /> Saved items</Link></div>
       </section>
 
       <section className="section shell">
@@ -57,6 +59,11 @@ export default function HomePage() {
             <div className="icon-box"><Sparkles size={21} /></div>
             <h3>Modular commerce engine</h3>
             <p>Retailers plug into one normalized connector contract so new sources can be added without rewriting RightPrice.</p>
+          </article>
+          <article className="feature-card">
+            <div className="icon-box"><Download size={21} /></div>
+            <h3>Installable & offline-aware</h3>
+            <p>Install RightPrice as a PWA and keep saved comparison snapshots available even when your connection drops.</p>
           </article>
         </div>
       </section>
