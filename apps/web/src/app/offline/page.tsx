@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function OfflinePage(){return <main className="section shell"><section className="panel empty-state"><h2>You’re offline</h2><p className="muted">Saved comparison snapshots remain available on this device. Current prices, shipping and availability require a connection.</p><Link className="primary-button" href="/lists">Open saved items</Link></section></main>;}
