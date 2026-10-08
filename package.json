@@ -11,7 +11,7 @@
     "build": "npm --workspace @rightprice/web run build",
     "lint": "npm --workspace @rightprice/web run lint",
     "typecheck": "tsc -p packages/core/tsconfig.json && npm --workspace @rightprice/connectors run typecheck && npm --workspace @rightprice/web run typecheck && npm --workspace @rightprice/mcp-server run typecheck",
-    "test": "node --experimental-strip-types --test packages/core/src/ranking.test.ts packages/core/src/product-match.test.ts packages/core/src/commission.test.ts packages/core/src/search-intent.test.ts packages/core/src/money.test.ts",
+    "test": "node --experimental-strip-types --test packages/core/src/ranking.test.ts packages/core/src/product-match.test.ts packages/core/src/commission.test.ts packages/core/src/search-intent.test.ts packages/core/src/money.test.ts packages/connectors/src/generic-json-feed.test.ts",
     "check": "npm run test && npm run typecheck && npm run lint && npm run build",
     "mcp": "npm --workspace @rightprice/mcp-server start"
   },
