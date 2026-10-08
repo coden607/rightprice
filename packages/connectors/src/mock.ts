@@ -63,8 +63,11 @@ function makeOffer(params: {
 export class MockCommerceConnector implements CommerceConnector {
   readonly id = "mock";
   readonly displayName = "Demo retailers";
+  private readonly enabled: boolean;
 
-  constructor(private readonly enabled = true) {}
+  constructor(enabled = true) {
+    this.enabled = enabled;
+  }
 
   isEnabled(): boolean {
     return this.enabled;

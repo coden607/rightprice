@@ -113,3 +113,49 @@ Payout integration is intentionally not activated without an approved Stripe pro
 ## Merchant/network rule gate
 
 Before enabling cashback, referrals, sub-affiliate revenue, creator links, software distribution, or automated promotions for any merchant, record the program permissions in `affiliate_programs`. Do not infer one merchant's permissions from another's.
+
+
+## Feed formats and field mapping
+
+The approved-feed connector accepts JSON, JSONL/NDJSON, CSV, TSV/TAB and gzip-compressed versions of those formats. Format is auto-detected from the URL/content when possible.
+
+Every network/retailer prefix supports:
+
+```text
+<PREFIX>_FORMAT=auto|json|jsonl|csv|tsv
+<PREFIX>_FIELD_ID=
+<PREFIX>_FIELD_TITLE=
+<PREFIX>_FIELD_PRICE=
+<PREFIX>_FIELD_SHIPPING=
+<PREFIX>_FIELD_CASHBACK=
+<PREFIX>_FIELD_URL=
+<PREFIX>_FIELD_AFFILIATE_URL=
+<PREFIX>_FIELD_IMAGE_URL=
+<PREFIX>_FIELD_BRAND=
+<PREFIX>_FIELD_UPC=
+<PREFIX>_FIELD_SELLER=
+<PREFIX>_FIELD_RETAILER_ID=
+<PREFIX>_FIELD_RETAILER_NAME=
+```
+
+This lets an approved network catalog be connected without changing application code when its column names differ from RightPrice's canonical schema. Dotted JSON paths are supported for nested JSON fields.
+
+### Awin preset
+
+Awin publisher product feeds are pre-mapped to the documented comparison-feed columns:
+
+```text
+aw_product_id       -> id
+product_name        -> title
+search_price        -> price
+delivery_cost       -> shipping
+merchant_deep_link  -> source URL
+aw_deep_link        -> affiliate URL
+merchant_image_url  -> image
+brand_name          -> brand
+upc                  -> UPC
+merchant_id          -> retailer ID
+merchant_name        -> retailer name
+```
+
+Set `AWIN_FEED_URL`, `AWIN_ENABLED=true`, and any required auth token after the publisher account has access to the desired advertiser feeds. Field overrides remain available if a particular feed uses different columns.
