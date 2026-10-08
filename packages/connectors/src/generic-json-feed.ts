@@ -1,3 +1,4 @@
+import { gunzipSync } from "node:zlib";
 import {
   calculateOfferTotals,
   money,
@@ -25,6 +26,8 @@ export interface GenericJsonFeedFieldMap {
   retailerName?: string;
 }
 
+export type GenericFeedFormat = "auto" | "json" | "jsonl" | "csv" | "tsv";
+
 export interface GenericJsonFeedConfig {
   id: string;
   displayName: string;
@@ -35,6 +38,7 @@ export interface GenericJsonFeedConfig {
   allowsCashback?: boolean;
   headers?: Record<string, string | undefined>;
   queryParam?: string;
+  format?: GenericFeedFormat;
 }
 
 type FeedRow = Record<string, unknown>;
@@ -80,6 +84,121 @@ function safeRetailerId(value: string): string {
   return normalized || "merchant";
 }
 
+function parseJsonRows(value: unknown): FeedRow[] {
+  if (Array.isArray(value)) return value.filter((row): row is FeedRow => Boolean(row && typeof row === "object"));
+  if (value && typeof value === "object") {
+    const body = value as FeedRow;
+    const possible = body.items ?? body.products ?? body.offers ?? body.results;
+    if (Array.isArray(possible)) {
+      return possible.filter((row): row is FeedRow => Boolean(row && typeof row === "object"));
+    }
+  }
+  throw new Error("Feed did not return an array/items/products/offers/results collection");
+}
+
+function parseDelimitedRecords(text: string, delimiter: "," | "\t"): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (quoted) {
+      if (char === "\"") {
+        if (text[index + 1] === "\"") {
+          field += "\"";
+          index += 1;
+        } else {
+          quoted = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      quoted = true;
+    } else if (char === delimiter) {
+      row.push(field);
+      field = "";
+    } else if (char === "\n") {
+      row.push(field.replace(/\r$/, ""));
+      if (row.some((value) => value.length > 0)) rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  row.push(field.replace(/\r$/, ""));
+  if (row.some((value) => value.length > 0)) rows.push(row);
+  return rows;
+}
+
+export function parseDelimitedFeed(text: string, delimiter: "," | "\t"): FeedRow[] {
+  const records = parseDelimitedRecords(text.replace(/^\uFEFF/, ""), delimiter);
+  if (records.length < 2) return [];
+  const headers = records[0].map((header) => header.trim());
+  return records.slice(1).map((record) => Object.fromEntries(
+    headers.map((header, index) => [header, record[index] ?? ""])
+  ));
+}
+
+export function parseFeedText(
+  text: string,
+  configuredFormat: GenericFeedFormat = "auto",
+  sourceUrl = ""
+): FeedRow[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const path = sourceUrl.toLowerCase();
+  const format = configuredFormat === "auto"
+    ? path.endsWith(".jsonl") || path.endsWith(".ndjson")
+      ? "jsonl"
+      : path.endsWith(".csv")
+        ? "csv"
+        : path.endsWith(".tsv") || path.endsWith(".tab")
+          ? "tsv"
+          : "auto"
+    : configuredFormat;
+
+  if (format === "json") return parseJsonRows(JSON.parse(trimmed));
+  if (format === "jsonl") {
+    return trimmed.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line) as FeedRow);
+  }
+  if (format === "csv") return parseDelimitedFeed(trimmed, ",");
+  if (format === "tsv") return parseDelimitedFeed(trimmed, "\t");
+
+  try {
+    return parseJsonRows(JSON.parse(trimmed));
+  } catch {
+    const lines = trimmed.split(/\r?\n/).filter(Boolean);
+    if (lines.length > 1) {
+      try {
+        return lines.map((line) => JSON.parse(line) as FeedRow);
+      } catch {
+        const first = lines[0] ?? "";
+        const tabs = (first.match(/\t/g) ?? []).length;
+        const commas = (first.match(/,/g) ?? []).length;
+        return parseDelimitedFeed(trimmed, tabs > commas ? "\t" : ",");
+      }
+    }
+    throw new Error("Unsupported affiliate feed format");
+  }
+}
+
+async function responseText(response: Response): Promise<string> {
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const body = buffer.length >= 2 && buffer[0] === 0x1f && buffer[1] === 0x8b
+    ? gunzipSync(buffer)
+    : buffer;
+  return body.toString("utf8");
+}
+
 export class GenericJsonFeedConnector implements CommerceConnector {
   readonly id: string;
   readonly displayName: string;
@@ -98,17 +217,12 @@ export class GenericJsonFeedConnector implements CommerceConnector {
     if (!endpoint) return [];
     if (query && this.config.queryParam) endpoint.searchParams.set(this.config.queryParam, query);
     const response = await fetch(endpoint, {
-      headers: { Accept: "application/json", ...requestHeaders(this.config.headers) },
+      headers: { Accept: "application/json,text/csv,text/tab-separated-values,text/plain,*/*", ...requestHeaders(this.config.headers) },
       cache: "no-store"
     });
     if (!response.ok) throw new Error(`${this.displayName} feed failed (${response.status})`);
-    const body = await response.json() as unknown;
-    if (Array.isArray(body)) return body.filter((row): row is FeedRow => Boolean(row && typeof row === "object"));
-    if (body && typeof body === "object") {
-      const possible = (body as FeedRow).items ?? (body as FeedRow).products ?? (body as FeedRow).offers ?? (body as FeedRow).results;
-      if (Array.isArray(possible)) return possible.filter((row): row is FeedRow => Boolean(row && typeof row === "object"));
-    }
-    throw new Error(`${this.displayName} feed did not return an array/items/products/offers/results collection`);
+    const text = await responseText(response);
+    return parseFeedText(text, this.config.format ?? "auto", endpoint.pathname);
   }
 
   async search(intent: SearchIntent, _context: SearchContext): Promise<Offer[]> {
@@ -164,7 +278,7 @@ export class GenericJsonFeedConnector implements CommerceConnector {
         sourceTimestamp: now,
         freshnessSeconds: 1800,
         riskFlags: [],
-        metadata: { source: "generic-json-feed", connectorId: this.id }
+        metadata: { source: "generic-affiliate-feed", connectorId: this.id }
       }];
     });
   }
