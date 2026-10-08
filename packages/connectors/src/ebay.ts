@@ -60,8 +60,11 @@ export interface EbayConnectorConfig {
 export class EbayBrowseConnector implements CommerceConnector {
   readonly id = "ebay";
   readonly displayName = "eBay";
+  private readonly config: EbayConnectorConfig;
 
-  constructor(private readonly config: EbayConnectorConfig) {}
+  constructor(config: EbayConnectorConfig) {
+    this.config = config;
+  }
 
   isEnabled(): boolean {
     return Boolean(this.config.enabled && this.config.clientId && this.config.clientSecret);

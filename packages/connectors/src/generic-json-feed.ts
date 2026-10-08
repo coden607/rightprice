@@ -202,8 +202,10 @@ async function responseText(response: Response): Promise<string> {
 export class GenericJsonFeedConnector implements CommerceConnector {
   readonly id: string;
   readonly displayName: string;
+  private readonly config: GenericJsonFeedConfig;
 
-  constructor(private readonly config: GenericJsonFeedConfig) {
+  constructor(config: GenericJsonFeedConfig) {
+    this.config = config;
     this.id = config.id;
     this.displayName = config.displayName;
   }
