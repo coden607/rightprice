@@ -5,6 +5,8 @@ import { normalizeRankingWeights, parseSearchIntent, type RankedOffer, type Rank
 import { searchAllConnectors } from "@rightprice/connectors";
 import { configuredConnectors } from "@/lib/server/connectors";
 import { createClickToken } from "@/lib/server/clickout";
+import { persistSearchOffers } from "@/lib/server/persist-offers";
+import { checkPublicRateLimit } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +58,15 @@ function publicOffer(offer: RankedOffer, requestId: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rateLimit = checkPublicRateLimit("search", clientIp);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many searches. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   const parsed = QuerySchema.safeParse({
     q: request.nextUrl.searchParams.get("q") ?? "",
     preset: request.nextUrl.searchParams.get("preset") ?? undefined,
@@ -95,6 +106,10 @@ export async function GET(request: NextRequest) {
     referralCode,
     locale: request.headers.get("accept-language") ?? undefined
   }, customWeights);
+
+  void persistSearchOffers(result.offers).catch((error) =>
+    console.error("Failed to persist search offers", error)
+  );
 
   return NextResponse.json({
     requestId,
