@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ConnectorHealthPanel } from "@/components/connector-health-panel";
 import { affiliateReadiness, affiliateReadinessSummary } from "@/lib/server/affiliate-readiness";
+import { revenueReadiness, revenueReadinessSummary } from "@/lib/server/revenue-readiness";
 
 export const metadata: Metadata = { title: "Operations" };
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ function stateLabel(state: string) {
 export default function AdminPage() {
   const programs = affiliateReadiness();
   const summary = affiliateReadinessSummary();
+  const revenueGates = revenueReadiness();
+  const revenueSummary = revenueReadinessSummary();
 
   return (
     <main className="section shell">
@@ -26,6 +29,22 @@ export default function AdminPage() {
         <strong>Affiliate readiness:</strong>{" "}
         {summary.monetizing} monetizing · {summary.configured} configured · {summary.pendingApproval} pending approval ·{" "}
         {summary.needsCredentials} need credentials · {summary.blocked} blocked
+      </div>
+
+      <div className="info-box" style={{ marginBottom: 16 }}>
+        <strong>Revenue launch gates:</strong> {revenueSummary.ready}/{revenueSummary.total} ready
+      </div>
+
+      <div style={{ display: "grid", gap: 12, marginBottom: 24 }}>
+        {revenueGates.map((gate) => (
+          <article key={gate.id} className="info-box">
+            <strong>{gate.ready ? "✓" : "○"} {gate.label}</strong>
+            <div style={{ marginTop: 4 }}>{gate.detail}</div>
+            {gate.missing?.length ? (
+              <div style={{ marginTop: 6 }}>Missing: <code>{gate.missing.join(", ")}</code></div>
+            ) : null}
+          </article>
+        ))}
       </div>
 
       <div style={{ display: "grid", gap: 12, marginBottom: 24 }}>
