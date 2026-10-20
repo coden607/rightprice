@@ -11,15 +11,32 @@ function has(key: string): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function strongSecret(key: string): boolean {
+  const value = process.env[key]?.trim() ?? "";
+  if (!value || value === "change-me-to-a-long-random-secret") return false;
+  return value.length >= 32;
+}
+
+function productionAppUrlReady(): boolean {
+  const value = process.env.NEXT_PUBLIC_APP_URL;
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 export function revenueReadiness(): RevenueGate[] {
-  const clickoutReady = has("RIGHTPRICE_CLICKOUT_SECRET");
+  const clickoutReady = strongSecret("RIGHTPRICE_CLICKOUT_SECRET");
   const supabaseReady =
     has("NEXT_PUBLIC_SUPABASE_URL") &&
     has("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") &&
     has("SUPABASE_SERVICE_ROLE_KEY");
-  const ingestReady = has("AFFILIATE_INGEST_SECRET");
-  const cronReady = has("CRON_SECRET");
-  const appUrlReady = has("NEXT_PUBLIC_APP_URL");
+  const ingestReady = strongSecret("AFFILIATE_INGEST_SECRET");
+  const cronReady = strongSecret("CRON_SECRET");
+  const appUrlReady = productionAppUrlReady();
   const demoOff = process.env.ENABLE_DEMO_CONNECTOR !== "true";
 
   return [
@@ -27,7 +44,7 @@ export function revenueReadiness(): RevenueGate[] {
       id: "clickout",
       label: "Signed affiliate clickouts",
       ready: clickoutReady,
-      missing: clickoutReady ? [] : ["RIGHTPRICE_CLICKOUT_SECRET"],
+      missing: clickoutReady ? [] : ["RIGHTPRICE_CLICKOUT_SECRET (strong non-placeholder value)"],
       detail: "Required before commission-tracked outbound links are trusted."
     },
     {
@@ -45,21 +62,21 @@ export function revenueReadiness(): RevenueGate[] {
       id: "ingest",
       label: "Affiliate transaction ingestion",
       ready: ingestReady,
-      missing: ingestReady ? [] : ["AFFILIATE_INGEST_SECRET"],
+      missing: ingestReady ? [] : ["AFFILIATE_INGEST_SECRET (32+ characters)"],
       detail: "Protects normalized network conversion/commission ingestion."
     },
     {
       id: "cron",
       label: "Scheduled price/alert jobs",
       ready: cronReady,
-      missing: cronReady ? [] : ["CRON_SECRET"],
+      missing: cronReady ? [] : ["CRON_SECRET (32+ characters)"],
       detail: "Protects scheduled rechecks and alert processing."
     },
     {
       id: "app-url",
       label: "Canonical production URL",
       ready: appUrlReady,
-      missing: appUrlReady ? [] : ["NEXT_PUBLIC_APP_URL"],
+      missing: appUrlReady ? [] : ["NEXT_PUBLIC_APP_URL (public HTTPS origin, not localhost)"],
       detail: "Used for auth callbacks, affiliate applications, and canonical links."
     },
     {
