@@ -188,10 +188,10 @@ function enabledFor(spec: ProgramSpec): boolean {
 
 function stateFor(spec: ProgramSpec, missing: string[], enabled: boolean, partnerStatus: string): AffiliateState {
   if (spec.approvalEnv && process.env[spec.approvalEnv] !== "true") return "blocked";
+  if (/rejected|suspended|disabled|closed|denied/i.test(partnerStatus)) return "blocked";
   if (/pending|review|submitted/i.test(partnerStatus)) return "pending-approval";
-  if (missing.length > 0) return partnerStatus === "not-started" || partnerStatus === "unknown"
-    ? "needs-credentials"
-    : "needs-credentials";
+  if (missing.length > 0) return "needs-credentials";
+  if (!/approved|active/i.test(partnerStatus)) return "configured";
   if (enabled) return "monetizing";
   return "configured";
 }
