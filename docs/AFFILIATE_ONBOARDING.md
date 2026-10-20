@@ -16,7 +16,7 @@ Price-comparison and shopping-discovery web application.
 
 **Promotional-space description**
 
-> RightPrice is a shopper-first price-comparison PWA that helps users compare product price, shipping, seller trust, returns, cashback where permitted, and pickup options across approved retailers. Affiliate compensation never changes organic ranking.
+> RightPrice is a shopper-first price-comparison PWA that helps users compare product price, shipping, seller trust, returns, and cashback where permitted across approved retailers. Affiliate compensation never changes organic ranking.
 
 **Primary audience**
 
