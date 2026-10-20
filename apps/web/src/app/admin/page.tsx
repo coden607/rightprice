@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { ConnectorHealthPanel } from "@/components/connector-health-panel";
 import { affiliateReadiness, affiliateReadinessSummary } from "@/lib/server/affiliate-readiness";
+import { currentAdminEmail } from "@/lib/server/admin-auth";
 import { revenueReadiness, revenueReadinessSummary } from "@/lib/server/revenue-readiness";
 
 export const metadata: Metadata = { title: "Operations" };
@@ -10,7 +12,10 @@ function stateLabel(state: string) {
   return state.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const adminEmail = await currentAdminEmail();
+  if (!adminEmail) redirect("/account");
+
   const programs = affiliateReadiness();
   const summary = affiliateReadinessSummary();
   const revenueGates = revenueReadiness();
