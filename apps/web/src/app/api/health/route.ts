@@ -7,9 +7,10 @@ export async function GET() {
   const connectors = configuredConnectors();
   const health = await Promise.all(connectors.map((connector) => connector.health()));
   const realEnabled = connectors.some((connector) => connector.id !== "mock" && connector.isEnabled());
+  const demoEnabled = connectors.some((connector) => connector.id === "mock" && connector.isEnabled());
   return NextResponse.json({
     ok: true,
-    status: realEnabled ? "live-connectors-enabled" : "demo-ready",
+    status: realEnabled ? "live-connectors-enabled" : demoEnabled ? "demo-ready" : "no-live-connectors",
     connectors: health,
     timestamp: new Date().toISOString()
   });
