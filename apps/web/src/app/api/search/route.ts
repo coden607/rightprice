@@ -111,12 +111,16 @@ export async function GET(request: NextRequest) {
     console.error("Failed to persist search offers", error)
   );
 
+  const searchedConnectors = connectors.filter((connector) => connector.isEnabled()).map((connector) => connector.id);
+  const liveSourceState = searchedConnectors.length === 0 ? "no-live-sources" : "active";
+
   return NextResponse.json({
     requestId,
     intent,
     offers: result.offers.map((offer) => publicOffer(offer, requestId)),
     connectorErrors: result.connectorErrors,
-    searchedConnectors: connectors.filter((connector) => connector.isEnabled()).map((connector) => connector.id),
+    searchedConnectors,
+    liveSourceState,
     durationMs: Date.now() - started,
     ranking: customWeights ? { mode: "custom", weights: customWeights } : { mode: "preset", preset: intent.preset ?? "best_overall" },
     disclosure: "RightPrice may earn compensation from qualifying purchases. Affiliate compensation is not used as a ranking input."

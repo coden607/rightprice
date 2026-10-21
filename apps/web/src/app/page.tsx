@@ -4,7 +4,7 @@ import { InstallAppButton } from "@/components/install-app-button";
 
 const examples = [
   "cheapest DeWalt impact driver delivered this week",
-  "55 inch Samsung TV under $400 local pickup",
+  "55 inch Samsung TV under $400",
   "AirPods Pro 2 fastest reputable seller"
 ];
 
@@ -16,7 +16,7 @@ export default function HomePage() {
         <h1>Search once. <span className="gradient-text">Buy smarter.</span></h1>
         <p>
           RightPrice compares the real purchase decision — price, shipping, arrival time, seller trust,
-          returns, local pickup and cashback — then ranks the options by what matters to you.
+          returns and cashback where supported — then ranks the options by what matters to you.
         </p>
         <form className="search-box" action="/search">
           <input name="q" aria-label="What are you looking for?" placeholder="What are you looking for? Try: cheapest Milwaukee drill by Friday" required minLength={2} />
@@ -38,7 +38,7 @@ export default function HomePage() {
           <article className="feature-card">
             <div className="icon-box"><Clock3 size={21} /></div>
             <h3>Price vs. speed</h3>
-            <p>Choose cheapest, fastest, local pickup, most trusted or balanced value without repeating the search.</p>
+            <p>Choose cheapest, fastest, most trusted or balanced value without repeating the search.</p>
           </article>
           <article className="feature-card">
             <div className="icon-box"><ShieldCheck size={21} /></div>

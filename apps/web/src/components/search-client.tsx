@@ -41,6 +41,7 @@ type SearchResponse = {
   searchedConnectors: string[];
   durationMs: number;
   disclosure: string;
+  liveSourceState?: "no-live-sources" | "active";
   ranking?: { mode: "custom" | "preset" };
   error?: string;
 };
@@ -250,13 +251,14 @@ export function SearchClient({ initialQuery }: { initialQuery: string }) {
 
       {data && (
         <div className="summary-row">
-          <span>{data.offers.length} offers · checked {data.searchedConnectors.join(", ")} · {data.durationMs} ms</span>
+          <span>{data.offers.length} offers · checked {data.searchedConnectors.length ? data.searchedConnectors.join(", ") : "no live retailer sources"} · {data.durationMs} ms</span>
           <span className="summary-actions"><ShieldCheck size={14} style={{ verticalAlign: "-2px" }} /> Shopper-first ranking <a className="chip" href={`/alerts?q=${encodeURIComponent(submittedQuery)}`}>Set price alert</a><button className="chip action-chip" type="button" onClick={() => void shareSearch()}><Share2 size={13} /> Share search</button></span>
         </div>
       )}
 
       {loading && !data ? <div className="empty">Checking available sources…</div> : null}
-      {!loading && data && data.offers.length === 0 ? <div className="empty">No offers matched those constraints. Try relaxing the price, condition or local-pickup requirement.</div> : null}
+      {!loading && data && data.liveSourceState === "no-live-sources" ? <div className="empty">No live retailer source is active yet. RightPrice is ready, but the approved retailer/API credentials still need to be connected before real offers can appear.</div> : null}
+      {!loading && data && data.liveSourceState !== "no-live-sources" && data.offers.length === 0 ? <div className="empty">No offers matched those constraints. Try a broader product description, price range, or delivery preference.</div> : null}
 
       <div className="offer-list">
         {data?.offers.map((offer, index) => (
